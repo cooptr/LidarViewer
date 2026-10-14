@@ -10,7 +10,7 @@ struct PlyHeader {
 };
 
 struct Point {
-    float x, y, z;
+    float x, y, z, intensity, confidence;
 };
 
 PlyHeader read_header(const std::string& ply_file);

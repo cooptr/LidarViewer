@@ -6,7 +6,8 @@
 #include <string>
 #include <glm/gtc/matrix_transform.hpp>   
 #include <glm/gtc/type_ptr.hpp>
-#include <stdio.h>    
+#include <stdio.h>   
+#include <cstddef> 
 
 #include "renderer.hpp"
 #include "ply_loader.hpp"
@@ -16,7 +17,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 }
 
 void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
-    MouseState* state = (MouseState*)glfwGetWindowUserPointer(window);
+    AppState* state = (AppState*)glfwGetWindowUserPointer(window);
     if (!state) return;
 
     if (state->dragging) {
@@ -31,7 +32,7 @@ void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
-    MouseState* state = (MouseState*)glfwGetWindowUserPointer(window);
+    AppState* state = (AppState*)glfwGetWindowUserPointer(window);
     if (state && button == GLFW_MOUSE_BUTTON_LEFT) {
         state->dragging = (action == GLFW_PRESS);
         if (state->dragging) glfwGetCursorPos(window, &state->x, &state->y);
@@ -39,26 +40,32 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 }
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
-    MouseState* state = (MouseState*)glfwGetWindowUserPointer(window);
+    AppState* state = (AppState*)glfwGetWindowUserPointer(window);
     if (!state) return;
 
     state->distance *= (yoffset > 0) ? 0.9f : 1.1f;
-    state->distance  = glm::clamp(state->distance, 1.5f, 20.0f);
+    state->distance = glm::clamp(state->distance, 1.5f, 20.0f);
 }
 
 const char *vertexShaderSource = "#version 330 core\n"
     "layout (location = 0) in vec3 aPos;\n"
     "uniform mat4 viewProj;\n"
+    "out float height;\n"
     "void main()\n"
     "{\n"
     "   gl_Position = viewProj * vec4(aPos, 1.0);\n"
     "   gl_PointSize = 3.0;\n"
+    "   height = aPos.y;\n"
     "}\0";
 const char *fragmentShaderSource = "#version 330 core\n"
     "out vec4 FragColor;\n"
+    "in float height;\n"
     "void main()\n"
     "{\n"
-    "   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
+    "   float t = height * 0.5 + 0.5;\n"
+    "   vec3 low  = vec3(0.1, 0.2, 0.9);\n"
+    "   vec3 high = vec3(1.0, 0.3, 0.1);\n"
+    "   FragColor = vec4(mix(low, high, t), 1.0f);\n"
     "}\n\0";
 
 void render_test(const std::string& ply_file){
@@ -124,7 +131,7 @@ void render_test(const std::string& ply_file){
     glBufferData(GL_ARRAY_BUFFER, points.size() * sizeof(Point), points.data(), GL_STATIC_DRAW);
 
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)offsetof(Point, x));
     glEnableVertexAttribArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0); 
     glBindVertexArray(0); 
@@ -134,7 +141,7 @@ void render_test(const std::string& ply_file){
     glm::vec3 up(0.0f, 1.0f, 0.0f);    
 
     int w, h;
-    MouseState state{};     
+    AppState state{};     
     state.distance = 3.0f;
     glfwSetCursorPosCallback(window, cursor_position_callback);
     glfwSetScrollCallback(window, scroll_callback);

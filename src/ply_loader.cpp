@@ -80,6 +80,8 @@ std::vector<Point> get_points(const std::string& ply_file){
     int ix = find_col(h, "x");
     int iy = find_col(h, "y");
     int iz = find_col(h, "z");
+    int ii = find_col(h, "intensity");
+    int ic = find_col(h, "confidence");
 
     std::vector<std::string> row(h.props.size());
     std::ifstream file(ply_file);
@@ -98,6 +100,8 @@ std::vector<Point> get_points(const std::string& ply_file){
             p.x = std::stof(row[ix]);
             p.y = std::stof(row[iy]);
             p.z = std::stof(row[iz]);
+            p.intensity = std::stof(row[ii]);
+            p.confidence = std::stof(row[ic]);
             result[i] = p;
             ++i;
         }

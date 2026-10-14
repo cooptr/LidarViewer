@@ -5,7 +5,7 @@
 #include <GLFW/glfw3.h>
 #include <string>
 
-struct MouseState {
+struct AppState {
     double x;
     double y;
     float yaw;
