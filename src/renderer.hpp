@@ -12,6 +12,8 @@ struct AppState {
     float pitch;
     float distance;
     bool dragging = false;
+    float pointSize = 3.0f;
+    int colorMode = 0;
 };
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);

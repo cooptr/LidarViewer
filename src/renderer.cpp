@@ -7,10 +7,19 @@
 #include <glm/gtc/matrix_transform.hpp>   
 #include <glm/gtc/type_ptr.hpp>
 #include <stdio.h>   
-#include <cstddef> 
+#include <cstddef>
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
 
 #include "renderer.hpp"
 #include "ply_loader.hpp"
+
+void processInput(GLFWwindow *window)
+{
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
+}
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
@@ -23,12 +32,13 @@ void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
     if (state->dragging) {
         float dx = (float)(xpos - state->x);
         float dy = (float)(ypos - state->y);
+        state->x = xpos;
+        state->y = ypos;
+        if (ImGui::GetIO().WantCaptureMouse) return;
         state->yaw   -= dx * 0.005f;
         state->pitch += dy * 0.005f;
         state->pitch  = glm::clamp(state->pitch, -1.5f, 1.5f);
     }
-    state->x = xpos;
-    state->y = ypos;
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
@@ -47,22 +57,43 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
     state->distance = glm::clamp(state->distance, 1.5f, 20.0f);
 }
 
+void imgui_setup(GLFWwindow* gl_window){
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGui::StyleColorsDark();
+    ImGui_ImplGlfw_InitForOpenGL(gl_window, true);
+    ImGui_ImplOpenGL3_Init("#version 330");
+}
+
 const char *vertexShaderSource = "#version 330 core\n"
     "layout (location = 0) in vec3 aPos;\n"
+    "layout (location = 1) in float aintensity;\n"
+    "layout (location = 2) in float aconfidence;\n"
     "uniform mat4 viewProj;\n"
+    "uniform float pointSize;\n"
     "out float height;\n"
+    "out float confidence;\n"
+    "out float intensity;\n"
     "void main()\n"
     "{\n"
     "   gl_Position = viewProj * vec4(aPos, 1.0);\n"
-    "   gl_PointSize = 3.0;\n"
+    "   gl_PointSize = pointSize;\n"
     "   height = aPos.y;\n"
+    "   confidence = aconfidence;\n"
+    "   intensity = aintensity;\n"
     "}\0";
 const char *fragmentShaderSource = "#version 330 core\n"
     "out vec4 FragColor;\n"
+    "uniform int colorMode;\n"
     "in float height;\n"
+    "in float confidence;\n"
+    "in float intensity;\n"
     "void main()\n"
     "{\n"
-    "   float t = height * 0.5 + 0.5;\n"
+    "   float t;\n"
+    "   if (colorMode == 0) t = height * 0.5 + 0.5;\n"
+    "   else if (colorMode == 1) t = confidence;\n"
+    "   else t = intensity;\n"
     "   vec3 low  = vec3(0.1, 0.2, 0.9);\n"
     "   vec3 high = vec3(1.0, 0.3, 0.1);\n"
     "   FragColor = vec4(mix(low, high, t), 1.0f);\n"
@@ -132,9 +163,14 @@ void render_test(const std::string& ply_file){
 
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)offsetof(Point, x));
+    glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)offsetof(Point, intensity));
+    glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)offsetof(Point, confidence));
     glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+    glEnableVertexAttribArray(2);
     glBindBuffer(GL_ARRAY_BUFFER, 0); 
-    glBindVertexArray(0); 
+    glBindVertexArray(0);
+ 
 
     glm::vec3 eye(0.0f, 0.0f, 0.0f);
     glm::vec3 target(0.0f, 0.0f, 0.0f);
@@ -147,11 +183,28 @@ void render_test(const std::string& ply_file){
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetMouseButtonCallback(window, mouse_button_callback);
     glfwSetWindowUserPointer(window, &state);
+    int cam_loc = glGetUniformLocation(shaderProgram, "viewProj");
+    int point_loc = glGetUniformLocation(shaderProgram, "pointSize");
+    int color_mode_loc = glGetUniformLocation(shaderProgram, "colorMode");
+
+    imgui_setup(window);
 
     glEnable(GL_PROGRAM_POINT_SIZE);
     glEnable(GL_DEPTH_TEST);
     while (!glfwWindowShouldClose(window))
     {
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        ImGui::Begin("Controls");
+        ImGui::SliderFloat("Point size", &state.pointSize, 1.0f, 10.0f);
+        ImGui::Combo("Color by", &state.colorMode, "Height\0Confidence\0Intensity\0");
+        ImGui::Text("%d points", (int)points.size());
+        ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
+        ImGui::End();
+
+        ImGui::Render();
         processInput(window);
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -167,13 +220,15 @@ void render_test(const std::string& ply_file){
         glm::mat4 view = glm::lookAt(eye, target, up);
         glm::mat4 viewProj = proj * view;
 
-        int loc = glGetUniformLocation(shaderProgram, "viewProj");
         glUseProgram(shaderProgram);
-        glUniformMatrix4fv(loc, 1, GL_FALSE, glm::value_ptr(viewProj));
+        glUniformMatrix4fv(cam_loc, 1, GL_FALSE, glm::value_ptr(viewProj));
+        glUniform1f(point_loc, state.pointSize);
+        glUniform1i(color_mode_loc, state.colorMode);
 
         glBindVertexArray(VAO);
         glDrawArrays(GL_POINTS, 0, points.size());
 
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -182,12 +237,10 @@ void render_test(const std::string& ply_file){
     glDeleteBuffers(1, &VBO);
     glDeleteProgram(shaderProgram);
 
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
     glfwTerminate();
     return;
-}
-
-void processInput(GLFWwindow *window)
-{
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, true);
 }
