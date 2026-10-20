@@ -14,6 +14,7 @@
 
 #include "renderer.hpp"
 #include "ply_loader.hpp"
+#include "las_loader.hpp"
 
 void processInput(GLFWwindow *window)
 {
@@ -54,7 +55,7 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
     if (!state) return;
 
     state->distance *= (yoffset > 0) ? 0.9f : 1.1f;
-    state->distance = glm::clamp(state->distance, 1.5f, 20.0f);
+    state->distance = glm::clamp(state->distance, 0.15f, 20.0f);
 }
 
 void imgui_setup(GLFWwindow* gl_window){
@@ -99,7 +100,7 @@ const char *fragmentShaderSource = "#version 330 core\n"
     "   FragColor = vec4(mix(low, high, t), 1.0f);\n"
     "}\n\0";
 
-void render_test(const std::string& ply_file){
+void render_test(const std::string& las_file){
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -151,7 +152,7 @@ void render_test(const std::string& ply_file){
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
-    std::vector<Point> points = get_points(ply_file);
+    std::vector<Point> points = load_las(las_file);
 
     unsigned int VBO, VAO;
     glGenVertexArrays(1, &VAO);

@@ -1,2 +1,4 @@
 build/
 bun_zipper.ply:Zone.Identifier
+*.las
+*.Identifier
