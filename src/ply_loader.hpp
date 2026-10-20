@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <glm/glm.hpp>
 
 struct PlyHeader {
     size_t vertexCount = 0;
@@ -10,6 +11,7 @@ struct PlyHeader {
 };
 
 struct Point {
+    glm::vec3 ctag_rgb;
     float x, y, z, intensity, confidence;
 };
 

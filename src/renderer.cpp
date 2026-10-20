@@ -70,11 +70,13 @@ const char *vertexShaderSource = "#version 330 core\n"
     "layout (location = 0) in vec3 aPos;\n"
     "layout (location = 1) in float aintensity;\n"
     "layout (location = 2) in float aconfidence;\n"
+    "layout (location = 3) in vec3 actag_rgb;\n"
     "uniform mat4 viewProj;\n"
     "uniform float pointSize;\n"
     "out float height;\n"
     "out float confidence;\n"
     "out float intensity;\n"
+    "out vec3 ctag_rgb;\n"
     "void main()\n"
     "{\n"
     "   gl_Position = viewProj * vec4(aPos, 1.0);\n"
@@ -82,6 +84,7 @@ const char *vertexShaderSource = "#version 330 core\n"
     "   height = aPos.y;\n"
     "   confidence = aconfidence;\n"
     "   intensity = aintensity;\n"
+    "   ctag_rgb = actag_rgb;\n"
     "}\0";
 const char *fragmentShaderSource = "#version 330 core\n"
     "out vec4 FragColor;\n"
@@ -89,15 +92,19 @@ const char *fragmentShaderSource = "#version 330 core\n"
     "in float height;\n"
     "in float confidence;\n"
     "in float intensity;\n"
+    "in vec3 ctag_rgb;\n"
     "void main()\n"
     "{\n"
+    "   vec3 v;\n"
     "   float t;\n"
     "   if (colorMode == 0) t = height * 0.5 + 0.5;\n"
     "   else if (colorMode == 1) t = confidence;\n"
-    "   else t = intensity;\n"
+    "   else if (colorMode == 2) t = intensity;\n"
+    "   else v = ctag_rgb;\n"
     "   vec3 low  = vec3(0.1, 0.2, 0.9);\n"
     "   vec3 high = vec3(1.0, 0.3, 0.1);\n"
-    "   FragColor = vec4(mix(low, high, t), 1.0f);\n"
+    "   FragColor = vec4(v, 1.0f);\n"
+    //"   FragColor = vec4(mix(low, high, t), 1.0f);\n"
     "}\n\0";
 
 void render_test(const std::string& las_file){
@@ -166,9 +173,11 @@ void render_test(const std::string& las_file){
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)offsetof(Point, x));
     glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)offsetof(Point, intensity));
     glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)offsetof(Point, confidence));
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Point), (void*)offsetof(Point, ctag_rgb));
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glEnableVertexAttribArray(2);
+    glEnableVertexAttribArray(3);
     glBindBuffer(GL_ARRAY_BUFFER, 0); 
     glBindVertexArray(0);
  
@@ -200,7 +209,7 @@ void render_test(const std::string& las_file){
 
         ImGui::Begin("Controls");
         ImGui::SliderFloat("Point size", &state.pointSize, 1.0f, 10.0f);
-        ImGui::Combo("Color by", &state.colorMode, "Height\0Confidence\0Intensity\0");
+        ImGui::Combo("Color by", &state.colorMode, "Height\0Confidence\0Intensity\0Class\0");
         ImGui::Text("%d points", (int)points.size());
         ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
         ImGui::End();

@@ -4,6 +4,7 @@
 #include <fstream>
 #include <cstdint>
 #include <vector>
+#include <glm/glm.hpp>
 
 #include "ply_loader.hpp"
 #include "las_loader.hpp"
@@ -19,6 +20,82 @@ constexpr int POINT_COUNT = 247;
 constexpr int MAX_START = 179;
 constexpr int MIN_START = 187; 
 constexpr int LEGACY_COUNT = 107;
+
+enum class ClassificationTag {
+    Never_Classified,
+    Unassigned,
+    Ground,
+    Low_Veg,
+    Med_Veg,
+    High_Veg,
+    Building,
+    Noise,
+    Water = 9,
+    Rail,
+    Road,
+    Wire_Guard = 13,
+    Wire_Conductor,
+    Transmission_Tower,
+    Wire_Structure,
+    Bridge_Deck,
+    High_Noise
+};
+
+glm::vec3 ctag_convert(uint8_t ctag){
+    switch (static_cast<ClassificationTag>(ctag)) {
+        case (ClassificationTag::Never_Classified):
+        return glm::vec3{0.50f, 0.50f, 0.50f};
+        break;
+        case (ClassificationTag::Unassigned):
+        return glm::vec3{0.70f, 0.70f, 0.70f};
+        break;
+        case (ClassificationTag::Ground):
+        return glm::vec3{0.60f, 0.40f, 0.20f};
+        break;
+        case (ClassificationTag::Low_Veg):
+        return glm::vec3{0.60f, 0.90f, 0.40f};
+        break;
+        case (ClassificationTag::Med_Veg):
+        return glm::vec3{0.20f, 0.70f, 0.20f};
+        break;
+        case (ClassificationTag::High_Veg):
+        return glm::vec3{0.00f, 0.40f, 0.10f};
+        break;
+        case (ClassificationTag::Building):
+        return glm::vec3{0.90f, 0.30f, 0.30f};
+        break;
+        case (ClassificationTag::Noise):
+        return glm::vec3{1.00f, 0.00f, 1.00f};
+        break;
+        case (ClassificationTag::Water):
+        return glm::vec3{0.20f, 0.40f, 1.00f};
+        break;
+        case (ClassificationTag::Rail):
+        return glm::vec3{0.40f, 0.30f, 0.30f};
+        break;
+        case (ClassificationTag::Road):
+        return glm::vec3{0.30f, 0.30f, 0.35f};
+        break;
+        case (ClassificationTag::Wire_Guard):
+        return glm::vec3{1.00f, 1.00f, 0.50f};
+        break;
+        case (ClassificationTag::Wire_Conductor):
+        return glm::vec3{1.00f, 0.90f, 0.00f};
+        break;
+        case (ClassificationTag::Transmission_Tower):
+        return glm::vec3{1.00f, 0.60f, 0.00f};
+        break;
+        case (ClassificationTag::Wire_Structure):
+        return glm::vec3{0.90f, 0.70f, 0.40f};
+        break;
+        case (ClassificationTag::Bridge_Deck):
+        return glm::vec3{0.50f, 0.50f, 0.70f};
+        break;
+        case (ClassificationTag::High_Noise):
+        return glm::vec3{1.00f, 0.00f, 0.60f};
+        break;
+    }
+}
 
 std::vector<Point> load_las(const std::string& las_file){
     std::vector<Point> pts;
@@ -72,11 +149,14 @@ std::vector<Point> load_las(const std::string& las_file){
         int32_t ry = read_at<int32_t>(block, current_record + 4);
         int32_t rz = read_at<int32_t>(block, current_record + 8);
 
+        uint8_t ctag = read_at<uint8_t>(block, current_record + 15);
+
         double x = rx * xyz_scale[0] + xyz_offsets[0] - center[0];
         double y = ry * xyz_scale[1] + xyz_offsets[1] - center[1];
         double z = rz * xyz_scale[2] + xyz_offsets[2] - center[2];
 
         Point p;
+        p.ctag_rgb = ctag_convert(ctag);
         p.x = static_cast<float>(x);
         p.y = static_cast<float>(z);
         p.z = static_cast<float>(-y);
