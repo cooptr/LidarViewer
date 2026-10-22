@@ -94,6 +94,8 @@ glm::vec3 ctag_convert(uint8_t ctag){
         case (ClassificationTag::High_Noise):
         return glm::vec3{1.00f, 0.00f, 0.60f};
         break;
+        default:
+        return glm::vec3{0.50f, 0.50f, 0.50f};
     }
 }
 
@@ -141,27 +143,30 @@ std::vector<Point> load_las(const std::string& las_file){
     file.read(block.data(), block.size());
     if ((size_t)file.gcount() != block.size()) return {};
 
-    pts.resize(pointCount);
+    pts.reserve(pointCount);
     for (size_t i = 0; i < pointCount; i++){
         size_t current_record = i * recordLength;
+
+        uint8_t flags = read_at<uint8_t>(block, current_record + 15);
+        if (flags & 0x80) continue;                   
+        uint8_t cls = flags & 0x1F;
+        if (cls > 18) cls = 0;
 
         int32_t rx = read_at<int32_t>(block, current_record + 0);
         int32_t ry = read_at<int32_t>(block, current_record + 4);
         int32_t rz = read_at<int32_t>(block, current_record + 8);
-
-        uint8_t ctag = read_at<uint8_t>(block, current_record + 15);
 
         double x = rx * xyz_scale[0] + xyz_offsets[0] - center[0];
         double y = ry * xyz_scale[1] + xyz_offsets[1] - center[1];
         double z = rz * xyz_scale[2] + xyz_offsets[2] - center[2];
 
         Point p;
-        p.ctag_rgb = ctag_convert(ctag);
+        p.ctag_rgb  = ctag_convert(cls);
         p.x = static_cast<float>(x);
         p.y = static_cast<float>(z);
         p.z = static_cast<float>(-y);
         p.intensity = read_at<uint16_t>(block, current_record + 12) / 65535.0f;
-        pts[i] = p;
+        pts.push_back(p);
     }
     normalize(pts);
     return pts;

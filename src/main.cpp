@@ -5,6 +5,6 @@
 #include "las_loader.hpp"
 
 int main() {
-  render_test("madison.las");
+  render_test("987212.las");
   return 0;
 }
