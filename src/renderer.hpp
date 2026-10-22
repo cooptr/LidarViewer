@@ -5,17 +5,6 @@
 #include <GLFW/glfw3.h>
 #include <string>
 
-struct AppState {
-    double x;
-    double y;
-    float yaw;
-    float pitch;
-    float distance;
-    bool dragging = false;
-    float pointSize = 3.0f;
-    int colorMode = 0;
-};
-
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
 const unsigned int SCR_WIDTH = 800;

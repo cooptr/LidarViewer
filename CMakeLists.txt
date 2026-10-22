@@ -64,6 +64,9 @@ add_executable(pcviewer
   src/ply_loader.cpp
   src/renderer.cpp
   src/las_loader.cpp
+  src/shader.cpp
+  src/point_cloud.cpp
+  src/window.cpp
   # add later: src/ply_loader.cpp src/renderer.cpp src/camera.cpp ...
 )
 target_link_libraries(pcviewer PRIVATE glfw glad glm::glm imgui)
